@@ -1,0 +1,191 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  CHEF
+  FILIALLEITER
+  MITARBEITER
+}
+
+enum ScheduleStatus {
+  ENTWURF
+  EINGEREICHT
+  FREIGEGEBEN
+  NACHTRAEGLICH_GEAENDERT
+}
+
+enum SickLeaveType {
+  MIT_KRANKSCHEIN
+  OHNE_KRANKSCHEIN
+}
+
+enum VacationStatus {
+  BEANTRAGT
+  GENEHMIGT
+  ABGELEHNT
+}
+
+enum NotificationType {
+  DIENSTPLAN_FREIGEGEBEN
+  DIENSTPLAN_GEAENDERT
+  DIENSTPLAN_EINGEREICHT
+  KRANKMELDUNG_EINGETRAGEN
+  URLAUB_BEANTRAGT
+  URLAUB_GENEHMIGT
+  URLAUB_ABGELEHNT
+}
+
+model Filiale {
+  id        String   @id @default(cuid())
+  name      String
+  adresse   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  mitarbeiter UserFiliale[]
+  schedules   Schedule[]
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      Role     @default(MITARBEITER)
+  aktiv     Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  filialen        UserFiliale[]
+  contract        Contract?
+  sickLeaves      SickLeave[]
+  vacations       VacationRequest[]
+  scheduleEntries ScheduleEntry[]
+  auditLogs       AuditLog[]       @relation("AuditLogUser")
+  notifications   Notification[]
+}
+
+model UserFiliale {
+  id        String   @id @default(cuid())
+  userId    String
+  filialeId String
+  isPrimary Boolean  @default(false)
+  isLeiter  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  filiale Filiale @relation(fields: [filialeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, filialeId])
+}
+
+model Contract {
+  id             String    @id @default(cuid())
+  userId         String    @unique
+  istVollzeit    Boolean   @default(true)
+  sollStunden    Float     @default(38.5)
+  eintrittsDatum DateTime  @db.Date
+  austrittsDatum DateTime? @db.Date
+  aktiv          Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Schedule {
+  id             String         @id @default(cuid())
+  filialeId      String
+  kalenderwoche  Int
+  jahr           Int
+  status         ScheduleStatus @default(ENTWURF)
+  freigegebenAt  DateTime?
+  freigegebenVon String?
+  erstelltVon    String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  filiale   Filiale         @relation(fields: [filialeId], references: [id])
+  entries   ScheduleEntry[]
+  auditLogs AuditLog[]
+
+  @@unique([filialeId, kalenderwoche, jahr])
+}
+
+model ScheduleEntry {
+  id         String   @id @default(cuid())
+  scheduleId String
+  userId     String
+  datum      DateTime @db.Date
+  startZeit  String
+  endZeit    String
+  pausen     Float    @default(0)
+  notiz      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  schedule Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id])
+}
+
+model SickLeave {
+  id          String        @id @default(cuid())
+  userId      String
+  startDatum  DateTime      @db.Date
+  endDatum    DateTime      @db.Date
+  typ         SickLeaveType
+  notiz       String?
+  erstelltVon String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VacationRequest {
+  id           String         @id @default(cuid())
+  userId       String
+  startDatum   DateTime       @db.Date
+  endDatum     DateTime       @db.Date
+  status       VacationStatus @default(BEANTRAGT)
+  genehmigtVon String?
+  notiz        String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  scheduleId  String?
+  userId      String
+  aktion      String
+  tabelle     String
+  datensatzId String
+  alterWert   Json?
+  neuerWert   Json?
+  begruendung String?
+  createdAt   DateTime @default(now())
+
+  schedule Schedule? @relation(fields: [scheduleId], references: [id])
+  user     User      @relation("AuditLogUser", fields: [userId], references: [id])
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  typ       NotificationType
+  titel     String
+  nachricht String
+  gelesen   Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}

@@ -1,0 +1,24 @@
+import "next-auth";
+
+export type Role = "CHEF" | "FILIALLEITER" | "MITARBEITER";
+
+declare module "next-auth" {
+  interface Session {
+    user: {
+      id: string;
+      name: string;
+      email: string;
+      role: Role;
+    };
+  }
+  interface User {
+    role: Role;
+  }
+}
+
+declare module "next-auth/jwt" {
+  interface JWT {
+    id: string;
+    role: Role;
+  }
+}
