@@ -2,47 +2,35 @@
 
 ## Voraussetzungen
 - Node.js 18+
-- PostgreSQL (lokal oder Remote)
 
-## 1. Umgebungsvariablen einrichten
+> Die App verwendet einen In-Memory-Speicher — keine Datenbank erforderlich.
+
+## 1. Abhängigkeiten installieren
+```bash
+npm install
+```
+
+## 2. Umgebungsvariablen einrichten
 
 Datei `.env` bearbeiten:
 ```
-DATABASE_URL="postgresql://postgres:DEIN_PASSWORT@localhost:5432/verwaltung_app"
-NEXTAUTH_SECRET="ein-langer-zufaelliger-string-mindestens-32-zeichen"
-NEXTAUTH_URL="http://localhost:3000"
+AUTH_SECRET="ein-langer-zufaelliger-string-mindestens-32-zeichen"
+AUTH_URL="http://localhost:3000"
 ```
 
-Auch in `prisma.config.ts` wird `DATABASE_URL` aus `.env` geladen.
-
-## 2. Datenbank erstellen (PostgreSQL)
-```sql
-CREATE DATABASE verwaltung_app;
-```
-
-## 3. Schema in Datenbank anlegen
-```bash
-npx prisma migrate dev --name init
-```
-
-## 4. Testdaten einspielen
-```bash
-npm run db:seed
-```
-
-**Test-Zugangsdaten:**
-| Rolle | E-Mail | Passwort |
-|---|---|---|
-| Chef | chef@verwaltung.de | chef1234 |
-| Filialleiter | anna@verwaltung.de | leiter1234 |
-| Mitarbeiter | erika@verwaltung.de | mitarbeiter1234 |
-
-## 5. Entwicklungsserver starten
+## 3. Entwicklungsserver starten
 ```bash
 npm run dev
 ```
 
 Dann im Browser: http://localhost:3000
+
+## Test-Zugangsdaten
+| Rolle | E-Mail | Passwort |
+|---|---|---|
+| Chef | chef@verwaltung.de | chef1234 |
+| Filialleiter | anna@verwaltung.de | leiter1234 |
+| Mitarbeiter | erika@verwaltung.de | mitarbeiter1234 |
 
 ## Seitenstruktur
 | Route | Zugriff |
@@ -58,3 +46,8 @@ Dann im Browser: http://localhost:3000
 | /dashboard/audit | Chef, Filialleiter |
 | /dashboard/benachrichtigungen | Alle |
 | /dashboard/berichte | Chef, Filialleiter |
+
+## Vercel-Deployment
+Füge diese Umgebungsvariablen in den Vercel-Einstellungen hinzu:
+- `AUTH_SECRET` = langer zufälliger String
+- `AUTH_URL` = `https://deine-app.vercel.app`
