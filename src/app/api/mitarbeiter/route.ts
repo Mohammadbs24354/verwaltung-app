@@ -46,9 +46,11 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const users = store.users
-    .filter((user) => store.userFilialen.some(
-      (assignment) => assignment.userId === user.id && managedIds.includes(assignment.filialeId)
-    ))
+    .filter((user) => (user.role === "MITARBEITER" || user.id === session.user.id) &&
+      store.userFilialen.some(
+        (assignment) => assignment.userId === user.id && managedIds.includes(assignment.filialeId)
+      )
+    )
     .sort((a, b) => a.name.localeCompare(b.name));
   return NextResponse.json(users.map(enrichUser));
 }
