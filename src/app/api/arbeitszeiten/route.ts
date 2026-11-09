@@ -54,7 +54,7 @@ export async function GET(req: Request) {
     entries = entries.sort((a, b) => b.datum.getTime() - a.datum.getTime()).slice(0, 100);
   }
 
-  entries = entries
+  const enrichedEntries = entries
     .map((entry) => {
       const schedule = store.schedules.find((item) => item.id === entry.scheduleId)!;
       const filiale = store.filialen.find((item) => item.id === schedule.filialeId);
@@ -65,7 +65,7 @@ export async function GET(req: Request) {
   const contract = store.contracts.find((item) => item.userId === userId);
   const sollStunden = contract?.sollStunden ?? 38.5;
   let sollStundenImZeitraum = sollStunden;
-  const gesamtStunden = entries.reduce(
+  const gesamtStunden = enrichedEntries.reduce(
     (sum, entry) => sum + berechneStunden(entry.startZeit, entry.endZeit, entry.pausen), 0
   );
 
@@ -126,7 +126,7 @@ export async function GET(req: Request) {
   const differenz = gesamtStunden - effektivSollStunden;
 
   return NextResponse.json({
-    entries,
+    entries: enrichedEntries,
     gesamtStunden: Math.round(gesamtStunden * 100) / 100,
     sollStunden: effektivSollStunden,
     differenz: Math.round(differenz * 100) / 100,
