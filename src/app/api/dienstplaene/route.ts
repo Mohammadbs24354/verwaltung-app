@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { store, newId } from "@/lib/store";
 import { NextResponse } from "next/server";
 import { createAuditLog } from "@/lib/server-utils";
+import { canManageFiliale } from "@/lib/authorization";
 
 function enrichSchedule(s: (typeof store.schedules)[0]) {
   return {
@@ -65,21 +66,37 @@ export async function POST(req: Request) {
   if (!session || !["CHEF", "FILIALLEITER"].includes(session.user.role))
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const body = await req.json();
+  let body: Record<string, unknown>;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Ungültige Anfrage" }, { status: 400 });
+  }
+  const filialeId = typeof body.filialeId === "string" ? body.filialeId : "";
+  const kalenderwoche = Number(body.kalenderwoche);
+  const jahr = Number(body.jahr);
+  if (!filialeId || !store.filialen.some((branch) => branch.id === filialeId) ||
+      !canManageFiliale(session.user.id, session.user.role, filialeId)) {
+    return NextResponse.json({ error: "Für diese Filiale besteht keine Berechtigung" }, { status: 403 });
+  }
+  if (!Number.isInteger(kalenderwoche) || kalenderwoche < 1 || kalenderwoche > 53 ||
+      !Number.isInteger(jahr) || jahr < 2000 || jahr > 2100) {
+    return NextResponse.json({ error: "Ungültige Kalenderwoche oder Jahreszahl" }, { status: 400 });
+  }
   const existing = store.schedules.find(
     (s) =>
-      s.filialeId === body.filialeId &&
-      s.kalenderwoche === body.kalenderwoche &&
-      s.jahr === body.jahr
+      s.filialeId === filialeId &&
+      s.kalenderwoche === kalenderwoche &&
+      s.jahr === jahr
   );
   if (existing) return NextResponse.json({ error: "Dienstplan existiert bereits" }, { status: 409 });
 
   const t = new Date();
   const schedule = {
     id: newId(),
-    filialeId: body.filialeId,
-    kalenderwoche: body.kalenderwoche,
-    jahr: body.jahr,
+    filialeId,
+    kalenderwoche,
+    jahr,
     status: "ENTWURF" as const,
     freigegebenAt: null,
     freigegebenVon: null,
