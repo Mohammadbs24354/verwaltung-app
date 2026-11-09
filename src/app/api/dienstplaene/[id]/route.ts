@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { store } from "@/lib/store";
 import { NextResponse } from "next/server";
 import { createAuditLog, createNotificationForAll } from "@/lib/server-utils";
+import { canManageFiliale, isUserInFiliale } from "@/lib/authorization";
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -11,16 +12,24 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const schedule = store.schedules.find((s) => s.id === id);
   if (!schedule) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
+  const isChef = session.user.role === "CHEF";
+  const isManager = canManageFiliale(session.user.id, session.user.role, schedule.filialeId);
+  const isEmployee = session.user.role === "MITARBEITER" &&
+    isUserInFiliale(session.user.id, schedule.filialeId) && schedule.status === "FREIGEGEBEN";
+  if (!isChef && !isManager && !isEmployee) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   const filiale = store.filialen.find((f) => f.id === schedule.filialeId) ?? null;
   const entries = store.scheduleEntries
-    .filter((e) => e.scheduleId === id)
+    .filter((e) => e.scheduleId === id && (isChef || isManager || e.userId === session.user.id))
     .map((e) => {
       const user = store.users.find((u) => u.id === e.userId);
       return { ...e, user: { id: e.userId, name: user?.name ?? "" } };
     })
     .sort((a, b) => a.datum.getTime() - b.datum.getTime() || a.startZeit.localeCompare(b.startZeit));
 
-  const auditLogs = store.auditLogs
+  const auditLogs = (isChef || isManager ? store.auditLogs : [])
     .filter((l) => l.scheduleId === id)
     .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
     .slice(0, 50)
@@ -41,7 +50,17 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const schedule = store.schedules.find((s) => s.id === id);
   if (!schedule) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const body = await req.json();
+  if (!canManageFiliale(session.user.id, session.user.role, schedule.filialeId)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  let body: Record<string, unknown>;
+  try { body = await req.json(); } catch {
+    return NextResponse.json({ error: "Ungültige Anfrage" }, { status: 400 });
+  }
+  const allowedStatuses = ["ENTWURF", "EINGEREICHT", "FREIGEGEBEN", "NACHTRAEGLICH_GEAENDERT"];
+  if (body.status !== undefined && !allowedStatuses.includes(String(body.status))) {
+    return NextResponse.json({ error: "Ungültiger Dienstplanstatus" }, { status: 400 });
+  }
   const old = { ...schedule };
   const wasFreigegeben = schedule.status === "FREIGEGEBEN";
   const newStatus = body.status ?? schedule.status;
@@ -97,7 +116,8 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   const { id } = await params;
 
   const idx = store.schedules.findIndex((s) => s.id === id);
-  if (idx !== -1) store.schedules.splice(idx, 1);
+  if (idx === -1) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  store.schedules.splice(idx, 1);
   store.scheduleEntries = store.scheduleEntries.filter((e) => e.scheduleId !== id);
   return NextResponse.json({ ok: true });
 }
