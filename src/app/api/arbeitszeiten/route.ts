@@ -43,6 +43,7 @@ export async function GET(req: Request) {
   });
 
   let entries = visibleEntries();
+  let sollStundenImZeitraum = sollStunden;
   if (kw !== null) {
     const { start, end } = getWeekBounds(kw, jahr);
     entries = entries.filter((entry) => entry.datum >= start && entry.datum <= end);
@@ -89,12 +90,39 @@ export async function GET(req: Request) {
     vacationDays = weekDays.filter((day) =>
       vacation.some((item) => isWithinInterval(day, { start: item.startDatum, end: item.endDatum }))
     ).length;
+    const absentDays = weekDays.filter((day) =>
+      sick.some((item) => isWithinInterval(day, { start: item.startDatum, end: item.endDatum })) ||
+      vacation.some((item) => isWithinInterval(day, { start: item.startDatum, end: item.endDatum }))
+    ).length;
+    sollStundenImZeitraum = Math.max(0, sollStunden - absentDays * (sollStunden / 5));
+  } else if (monat !== null) {
+    const start = new Date(jahr, monat - 1, 1);
+    const end = new Date(jahr, monat, 0);
+    const monthDays = eachDayOfInterval({ start, end }).filter(
+      (day) => day.getDay() !== 0 && day.getDay() !== 6
+    );
+    const sick = store.sickLeaves.filter(
+      (item) => item.userId === userId && item.typ === "MIT_KRANKSCHEIN" &&
+        item.startDatum <= end && item.endDatum >= start
+    );
+    const vacation = store.vacationRequests.filter(
+      (item) => item.userId === userId && item.status === "GENEHMIGT" &&
+        item.startDatum <= end && item.endDatum >= start
+    );
+    sickDays = monthDays.filter((day) =>
+      sick.some((item) => isWithinInterval(day, { start: item.startDatum, end: item.endDatum }))
+    ).length;
+    vacationDays = monthDays.filter((day) =>
+      vacation.some((item) => isWithinInterval(day, { start: item.startDatum, end: item.endDatum }))
+    ).length;
+    const absentDays = monthDays.filter((day) =>
+      sick.some((item) => isWithinInterval(day, { start: item.startDatum, end: item.endDatum })) ||
+      vacation.some((item) => isWithinInterval(day, { start: item.startDatum, end: item.endDatum }))
+    ).length;
+    sollStundenImZeitraum = Math.max(0, sollStunden * monthDays.length / 5 - absentDays * (sollStunden / 5));
   }
 
-  const ausfalltageKompensiert = sickDays + vacationDays;
-  const effektivSollStunden = kw !== null
-    ? Math.max(0, sollStunden - ausfalltageKompensiert * (sollStunden / 5))
-    : sollStunden;
+  const effektivSollStunden = sollStundenImZeitraum;
   const differenz = gesamtStunden - effektivSollStunden;
 
   return NextResponse.json({
