@@ -65,8 +65,8 @@ export async function POST(req: Request) {
   const meldung: SickLeave = {
     id: newId(),
     userId,
-    startDatum: new Date(body.startDatum),
-    endDatum: new Date(body.endDatum),
+    startDatum: new Date(body.startDatum as string),
+    endDatum: new Date(body.endDatum as string),
     typ: body.typ,
     notiz: typeof body.notiz === "string" ? body.notiz.slice(0, 1000) : null,
     erstelltVon: session.user.id,
