@@ -56,7 +56,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   const endZeit = body.endZeit as string;
   const datum = new Date(body.datum as string);
   const conflict = store.scheduleEntries.some((existing) =>
-    existing.scheduleId === scheduleId && existing.userId === body.userId &&
+    existing.scheduleId === scheduleId && existing.userId === (body.userId as string) &&
     existing.datum.toDateString() === datum.toDateString() &&
     overlaps(startZeit, endZeit, existing.startZeit, existing.endZeit)
   );
@@ -88,7 +88,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       datensatzId: entry.id,
       neuerWert: entry,
     });
-    createNotificationForAll([body.userId], {
+    createNotificationForAll([entry.userId], {
       typ: "DIENSTPLAN_GEAENDERT",
       titel: "Dienstplan geändert",
       nachricht: `Ihr Dienstplan KW${schedule.kalenderwoche}/${schedule.jahr} wurde geändert.`,
