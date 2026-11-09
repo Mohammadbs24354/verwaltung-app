@@ -55,8 +55,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Mitarbeiter nicht gefunden" }, { status: 404 });
   }
 
-  const start = new Date(body.startDatum);
-  const end = new Date(body.endDatum);
+  const start = new Date(body.startDatum as string);
+  const end = new Date(body.endDatum as string);
   const overlaps = store.vacationRequests.some((request) =>
     request.userId === targetUserId &&
     request.status !== "ABGELEHNT" &&
