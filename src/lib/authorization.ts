@@ -16,6 +16,9 @@ export function canManageUser(actorId: string, actorRole: string, targetUserId: 
   if (actorRole === "CHEF") return true;
   if (actorRole !== "FILIALLEITER") return actorId === targetUserId;
 
+  const target = store.users.find((user) => user.id === targetUserId);
+  if (!target || (target.role !== "MITARBEITER" && targetUserId !== actorId)) return false;
+
   const managedFilialeIds = getManagedFilialeIds(actorId);
   return store.userFilialen.some(
     (assignment) =>
