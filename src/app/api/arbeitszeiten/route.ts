@@ -43,7 +43,6 @@ export async function GET(req: Request) {
   });
 
   let entries = visibleEntries();
-  let sollStundenImZeitraum = sollStunden;
   if (kw !== null) {
     const { start, end } = getWeekBounds(kw, jahr);
     entries = entries.filter((entry) => entry.datum >= start && entry.datum <= end);
@@ -65,6 +64,7 @@ export async function GET(req: Request) {
 
   const contract = store.contracts.find((item) => item.userId === userId);
   const sollStunden = contract?.sollStunden ?? 38.5;
+  let sollStundenImZeitraum = sollStunden;
   const gesamtStunden = entries.reduce(
     (sum, entry) => sum + berechneStunden(entry.startZeit, entry.endZeit, entry.pausen), 0
   );
