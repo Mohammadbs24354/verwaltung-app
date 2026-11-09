@@ -2,6 +2,7 @@ import { auth } from "@/lib/auth";
 import { store } from "@/lib/store";
 import { NextResponse } from "next/server";
 import { berechneStunden } from "@/lib/utils";
+import { canManageUser } from "@/lib/authorization";
 import { startOfISOWeek, endOfISOWeek, eachDayOfInterval, isWithinInterval } from "date-fns";
 
 function getWeekBounds(kw: number, jahr: number) {
@@ -16,91 +17,84 @@ export async function GET(req: Request) {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { searchParams } = new URL(req.url);
-  const userId = searchParams.get("userId") ?? session.user.id;
-  const kw = searchParams.get("kw");
-  const jahr = searchParams.get("jahr") ?? new Date().getFullYear().toString();
-  const monat = searchParams.get("monat");
-
-  const validStatuses = ["FREIGEGEBEN", "NACHTRAEGLICH_GEAENDERT"];
-
-  let entries;
-  if (kw) {
-    const { start, end } = getWeekBounds(parseInt(kw), parseInt(jahr));
-    entries = store.scheduleEntries
-      .filter((e) => {
-        const sched = store.schedules.find((s) => s.id === e.scheduleId);
-        return (
-          e.userId === userId &&
-          e.datum >= start &&
-          e.datum <= end &&
-          sched != null &&
-          validStatuses.includes(sched.status)
-        );
-      })
-      .map((e) => {
-        const sched = store.schedules.find((s) => s.id === e.scheduleId)!;
-        const filiale = store.filialen.find((f) => f.id === sched.filialeId);
-        return { ...e, schedule: { ...sched, filiale: { name: filiale?.name ?? "" } } };
-      })
-      .sort((a, b) => a.datum.getTime() - b.datum.getTime());
-  } else if (monat) {
-    const m = parseInt(monat) - 1;
-    const j = parseInt(jahr);
-    const start = new Date(j, m, 1);
-    const end = new Date(j, m + 1, 0);
-    entries = store.scheduleEntries
-      .filter((e) => {
-        const sched = store.schedules.find((s) => s.id === e.scheduleId);
-        return (
-          e.userId === userId &&
-          e.datum >= start &&
-          e.datum <= end &&
-          sched != null &&
-          validStatuses.includes(sched.status)
-        );
-      })
-      .map((e) => {
-        const sched = store.schedules.find((s) => s.id === e.scheduleId)!;
-        const filiale = store.filialen.find((f) => f.id === sched.filialeId);
-        return { ...e, schedule: { ...sched, filiale: { name: filiale?.name ?? "" } } };
-      })
-      .sort((a, b) => a.datum.getTime() - b.datum.getTime());
-  } else {
-    entries = store.scheduleEntries
-      .filter((e) => {
-        const sched = store.schedules.find((s) => s.id === e.scheduleId);
-        return e.userId === userId && sched != null && validStatuses.includes(sched.status);
-      })
-      .map((e) => {
-        const sched = store.schedules.find((s) => s.id === e.scheduleId)!;
-        const filiale = store.filialen.find((f) => f.id === sched.filialeId);
-        return { ...e, schedule: { ...sched, filiale: { name: filiale?.name ?? "" } } };
-      })
-      .sort((a, b) => b.datum.getTime() - a.datum.getTime())
-      .slice(0, 100);
+  const requestedUserId = searchParams.get("userId");
+  const userId = requestedUserId ?? session.user.id;
+  if (!canManageUser(session.user.id, session.user.role, userId)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const contract = store.contracts.find((c) => c.userId === userId);
+  const kwValue = searchParams.get("kw");
+  const monatValue = searchParams.get("monat");
+  const jahr = Number(searchParams.get("jahr") ?? new Date().getFullYear());
+  const kw = kwValue === null ? null : Number(kwValue);
+  const monat = monatValue === null ? null : Number(monatValue);
+
+  if (!Number.isInteger(jahr) || jahr < 2000 || jahr > 2100 ||
+      (kw !== null && (!Number.isInteger(kw) || kw < 1 || kw > 53)) ||
+      (monat !== null && (!Number.isInteger(monat) || monat < 1 || monat > 12)) ||
+      (kw !== null && monat !== null)) {
+    return NextResponse.json({ error: "Ungültiger Zeitraum" }, { status: 400 });
+  }
+
+  const validStatuses = ["FREIGEGEBEN", "NACHTRAEGLICH_GEAENDERT"];
+  const visibleEntries = () => store.scheduleEntries.filter((entry) => {
+    const schedule = store.schedules.find((item) => item.id === entry.scheduleId);
+    return entry.userId === userId && schedule !== undefined && validStatuses.includes(schedule.status);
+  });
+
+  let entries = visibleEntries();
+  if (kw !== null) {
+    const { start, end } = getWeekBounds(kw, jahr);
+    entries = entries.filter((entry) => entry.datum >= start && entry.datum <= end);
+  } else if (monat !== null) {
+    const start = new Date(jahr, monat - 1, 1);
+    const end = new Date(jahr, monat, 0, 23, 59, 59, 999);
+    entries = entries.filter((entry) => entry.datum >= start && entry.datum <= end);
+  } else {
+    entries = entries.sort((a, b) => b.datum.getTime() - a.datum.getTime()).slice(0, 100);
+  }
+
+  entries = entries
+    .map((entry) => {
+      const schedule = store.schedules.find((item) => item.id === entry.scheduleId)!;
+      const filiale = store.filialen.find((item) => item.id === schedule.filialeId);
+      return { ...entry, schedule: { ...schedule, filiale: { name: filiale?.name ?? "" } } };
+    })
+    .sort((a, b) => a.datum.getTime() - b.datum.getTime());
+
+  const contract = store.contracts.find((item) => item.userId === userId);
   const sollStunden = contract?.sollStunden ?? 38.5;
-  const gesamtStunden = entries.reduce((sum, e) => sum + berechneStunden(e.startZeit, e.endZeit, e.pausen), 0);
+  const gesamtStunden = entries.reduce(
+    (sum, entry) => sum + berechneStunden(entry.startZeit, entry.endZeit, entry.pausen), 0
+  );
 
   let sickDays = 0;
   let vacationDays = 0;
-  if (kw) {
-    const { start, end } = getWeekBounds(parseInt(kw), parseInt(jahr));
+  if (kw !== null) {
+    const { start, end } = getWeekBounds(kw, jahr);
     const sick = store.sickLeaves.filter(
-      (s) => s.userId === userId && s.typ === "MIT_KRANKSCHEIN" && s.startDatum <= end && s.endDatum >= start
+      (item) => item.userId === userId && item.typ === "MIT_KRANKSCHEIN" &&
+        item.startDatum <= end && item.endDatum >= start
     );
     const vacation = store.vacationRequests.filter(
-      (v) => v.userId === userId && v.status === "GENEHMIGT" && v.startDatum <= end && v.endDatum >= start
+      (item) => item.userId === userId && item.status === "GENEHMIGT" &&
+        item.startDatum <= end && item.endDatum >= start
     );
-    const weekDays = eachDayOfInterval({ start, end }).filter((d) => d.getDay() !== 0 && d.getDay() !== 6);
-    sickDays = weekDays.filter((d) => sick.some((s) => isWithinInterval(d, { start: s.startDatum, end: s.endDatum }))).length;
-    vacationDays = weekDays.filter((d) => vacation.some((v) => isWithinInterval(d, { start: v.startDatum, end: v.endDatum }))).length;
+    const weekDays = eachDayOfInterval({ start, end }).filter(
+      (day) => day.getDay() !== 0 && day.getDay() !== 6
+    );
+    sickDays = weekDays.filter((day) =>
+      sick.some((item) => isWithinInterval(day, { start: item.startDatum, end: item.endDatum }))
+    ).length;
+    vacationDays = weekDays.filter((day) =>
+      vacation.some((item) => isWithinInterval(day, { start: item.startDatum, end: item.endDatum }))
+    ).length;
   }
 
   const ausfalltageKompensiert = sickDays + vacationDays;
-  const effektivSollStunden = kw ? Math.max(0, sollStunden - ausfalltageKompensiert * (sollStunden / 5)) : sollStunden;
+  const effektivSollStunden = kw !== null
+    ? Math.max(0, sollStunden - ausfalltageKompensiert * (sollStunden / 5))
+    : sollStunden;
   const differenz = gesamtStunden - effektivSollStunden;
 
   return NextResponse.json({
