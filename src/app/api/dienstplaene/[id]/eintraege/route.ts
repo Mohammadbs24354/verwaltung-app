@@ -70,7 +70,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     startZeit,
     endZeit,
     pausen: pause as number,
-    notiz: body.notiz ?? null,
+    notiz: typeof body.notiz === "string" ? body.notiz.slice(0, 500) : null,
     createdAt: t,
     updatedAt: t,
   };
