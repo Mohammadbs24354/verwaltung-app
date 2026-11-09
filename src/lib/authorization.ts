@@ -40,7 +40,7 @@ export function isValidDate(value: unknown): value is string {
   return Number.isFinite(date.getTime());
 }
 
-export function isValidDateRange(start: unknown, end: unknown): start is string {
+export function isValidDateRange(start: unknown, end: unknown): boolean {
   return isValidDate(start) && isValidDate(end) &&
     new Date(start).getTime() <= new Date(end).getTime();
 }
