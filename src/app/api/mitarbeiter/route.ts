@@ -5,6 +5,10 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { canManageFiliale } from "@/lib/authorization";
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 function enrichUser(user: User) {
   const { password: _pw, ...rest } = user;
   return {
@@ -61,9 +65,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  let body: Record<string, any>;
+  let body: Record<string, unknown>;
   try {
-    body = await req.json();
+    const parsed: unknown = await req.json();
+    if (!isRecord(parsed)) return NextResponse.json({ error: "Ungültige Anfrage" }, { status: 400 });
+    body = parsed;
   } catch {
     return NextResponse.json({ error: "Ungültige Anfrage" }, { status: 400 });
   }
@@ -114,9 +120,9 @@ export async function POST(req: Request) {
   store.userFilialen.push(uf);
 
   let contract: Contract | null = null;
-  if (body.contract) {
+  if (isRecord(body.contract)) {
     const hours = Number(body.contract.sollStunden ?? 38.5);
-    const entryDate = new Date(body.contract.eintrittsDatum);
+    const entryDate = new Date(String(body.contract.eintrittsDatum));
     if (!Number.isFinite(hours) || hours <= 0 || hours > 60 || !Number.isFinite(entryDate.getTime())) {
       store.users.pop();
       store.userFilialen.pop();
