@@ -131,7 +131,7 @@ export async function POST(req: Request) {
     contract = {
       id: newId(),
       userId: user.id,
-      istVollzeit: body.contract.istVollzeit ?? true,
+      istVollzeit: body.contract.istVollzeit === undefined ? true : Boolean(body.contract.istVollzeit),
       sollStunden: hours,
       eintrittsDatum: entryDate,
       austrittsDatum: null,
