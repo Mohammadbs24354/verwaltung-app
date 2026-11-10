@@ -22,7 +22,6 @@ export default function BerichtePage() {
   const years = [jahr, jahr - 1, jahr - 2].map(String);
 
   useEffect(() => {
-    setLoading(true);
     fetch("/api/dienstplaene?jahr=" + filterJahr)
       .then((r) => r.json())
       .then(setSchedules)
@@ -55,7 +54,7 @@ export default function BerichtePage() {
         </div>
         <div className="space-y-1">
           <Label>Jahr</Label>
-          <Select value={filterJahr} onValueChange={setFilterJahr}>
+          <Select value={filterJahr} onValueChange={(value) => { setLoading(true); setFilterJahr(value); }}>
             <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
             <SelectContent>{years.map((y) => <SelectItem key={y} value={y}>{y}</SelectItem>)}</SelectContent>
           </Select>
