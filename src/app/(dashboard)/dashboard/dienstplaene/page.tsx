@@ -27,7 +27,6 @@ export default function DienstplaenePage() {
   const years = [currentYear, currentYear - 1, currentYear - 2].map(String);
 
   useEffect(() => {
-    setLoading(true);
     fetch("/api/dienstplaene?jahr=" + filterJahr)
       .then((r) => r.json())
       .then(setSchedules)
@@ -51,7 +50,7 @@ export default function DienstplaenePage() {
           <p className="text-gray-600">Aktuelle Woche: KW{kw}</p>
         </div>
         <div className="flex items-center gap-3">
-          <Select value={filterJahr} onValueChange={setFilterJahr}>
+          <Select value={filterJahr} onValueChange={(value) => { setLoading(true); setFilterJahr(value); }}>
             <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
             <SelectContent>{years.map((y) => <SelectItem key={y} value={y}>{y}</SelectItem>)}</SelectContent>
           </Select>

@@ -3,54 +3,72 @@ import { store, newId } from "@/lib/store";
 import type { SickLeave } from "@/lib/store";
 import { NextResponse } from "next/server";
 import { createAuditLog } from "@/lib/server-utils";
+import { canManageUser, isValidDateRange } from "@/lib/authorization";
 
 export async function GET(req: Request) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { searchParams } = new URL(req.url);
-  const userId = searchParams.get("userId");
-
+  const requestedUserId = searchParams.get("userId");
   let meldungen = store.sickLeaves;
 
   if (session.user.role === "MITARBEITER") {
-    meldungen = meldungen.filter((m) => m.userId === session.user.id);
+    meldungen = meldungen.filter((item) => item.userId === session.user.id);
   } else if (session.user.role === "FILIALLEITER") {
-    const filialeIds = store.userFilialen
-      .filter((uf) => uf.userId === session.user.id && uf.isLeiter)
-      .map((uf) => uf.filialeId);
-    const mitarbeiterIds = store.userFilialen
-      .filter((uf) => filialeIds.includes(uf.filialeId))
-      .map((uf) => uf.userId);
-    meldungen = meldungen.filter((m) => mitarbeiterIds.includes(m.userId));
-  } else if (userId) {
-    meldungen = meldungen.filter((m) => m.userId === userId);
+    meldungen = meldungen.filter((item) =>
+      canManageUser(session.user.id, session.user.role, item.userId)
+    );
+  }
+  if (requestedUserId) {
+    if (!canManageUser(session.user.id, session.user.role, requestedUserId)) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+    meldungen = meldungen.filter((item) => item.userId === requestedUserId);
   }
 
-  const result = meldungen
+  const result = [...meldungen]
     .sort((a, b) => b.startDatum.getTime() - a.startDatum.getTime())
-    .map((m) => ({
-      ...m,
-      user: { id: m.userId, name: store.users.find((u) => u.id === m.userId)?.name ?? "" },
+    .map((item) => ({
+      ...item,
+      user: { id: item.userId, name: store.users.find((user) => user.id === item.userId)?.name ?? "" },
     }));
-
   return NextResponse.json(result);
 }
 
 export async function POST(req: Request) {
   const session = await auth();
-  if (!session || !["CHEF", "FILIALLEITER"].includes(session.user.role))
+  if (!session || !["CHEF", "FILIALLEITER"].includes(session.user.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
 
-  const body = await req.json();
+  let body: Record<string, unknown>;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Ungültige Anfrage" }, { status: 400 });
+  }
+
+  const userId = typeof body.userId === "string" ? body.userId : "";
+  if (!userId || !canManageUser(session.user.id, session.user.role, userId)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  if (!isValidDateRange(body.startDatum, body.endDatum) ||
+      (body.typ !== "MIT_KRANKSCHEIN" && body.typ !== "OHNE_KRANKSCHEIN")) {
+    return NextResponse.json({ error: "Ungültige Krankmeldung" }, { status: 400 });
+  }
+  if (!store.users.some((user) => user.id === userId && user.aktiv)) {
+    return NextResponse.json({ error: "Mitarbeiter nicht gefunden" }, { status: 404 });
+  }
+
   const t = new Date();
   const meldung: SickLeave = {
     id: newId(),
-    userId: body.userId,
-    startDatum: new Date(body.startDatum),
-    endDatum: new Date(body.endDatum),
+    userId,
+    startDatum: new Date(body.startDatum as string),
+    endDatum: new Date(body.endDatum as string),
     typ: body.typ,
-    notiz: body.notiz ?? null,
+    notiz: typeof body.notiz === "string" ? body.notiz.slice(0, 1000) : null,
     erstelltVon: session.user.id,
     createdAt: t,
     updatedAt: t,
@@ -65,9 +83,9 @@ export async function POST(req: Request) {
     neuerWert: meldung,
   });
 
-  const user = store.users.find((u) => u.id === meldung.userId);
+  const user = store.users.find((item) => item.id === userId);
   return NextResponse.json(
-    { ...meldung, user: { id: meldung.userId, name: user?.name ?? "" } },
+    { ...meldung, user: { id: userId, name: user?.name ?? "" } },
     { status: 201 }
   );
 }

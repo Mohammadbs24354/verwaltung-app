@@ -28,12 +28,21 @@ interface Row {
   userId: string; datum: string; startZeit: string; endZeit: string; pausen: number; notiz: string;
 }
 
-export function EintragDialog({ open, scheduleId, filialeId, kw, jahr, editEntry, onClose, onSaved }: Props) {
+export function EintragDialog(props: Props) {
+  return <EintragDialogForm key={`${props.open}-${props.editEntry?.id ?? "new"}`} {...props} />;
+}
+
+function EintragDialogForm({ open, scheduleId, filialeId, kw, jahr, editEntry, onClose, onSaved }: Props) {
   const [mitarbeiter, setMitarbeiter] = useState<Mitarbeiter[]>([]);
   const [loading, setLoading] = useState(false);
-  const [rows, setRows] = useState<Row[]>([
-    { userId: "", datum: new Date().toISOString().slice(0, 10), startZeit: "08:00", endZeit: "16:00", pausen: 0, notiz: "" },
-  ]);
+  const [rows, setRows] = useState<Row[]>(() => editEntry ? [{
+    userId: editEntry.userId,
+    datum: editEntry.datum.slice(0, 10),
+    startZeit: editEntry.startZeit,
+    endZeit: editEntry.endZeit,
+    pausen: editEntry.pausen,
+    notiz: editEntry.notiz ?? "",
+  }] : [{ userId: "", datum: new Date().toISOString().slice(0, 10), startZeit: "08:00", endZeit: "16:00", pausen: 0, notiz: "" }]);
 
   useEffect(() => {
     fetch(`/api/mitarbeiter?filialeId=${filialeId}`)
@@ -41,19 +50,6 @@ export function EintragDialog({ open, scheduleId, filialeId, kw, jahr, editEntry
       .then(setMitarbeiter)
       .catch(() => {});
   }, [filialeId]);
-
-  useEffect(() => {
-    if (editEntry) {
-      setRows([{
-        userId: editEntry.userId,
-        datum: editEntry.datum.slice(0, 10),
-        startZeit: editEntry.startZeit,
-        endZeit: editEntry.endZeit,
-        pausen: editEntry.pausen,
-        notiz: editEntry.notiz ?? "",
-      }]);
-    }
-  }, [editEntry]);
 
   function addRow() {
     setRows((prev) => [...prev, { ...prev[prev.length - 1], userId: "" }]);

@@ -43,7 +43,6 @@ export default function ArbeitszeitenPage() {
   useEffect(() => {
     if (!selectedUser && !userId) return;
     const uid = selectedUser || userId;
-    setLoading(true);
     fetch(`/api/arbeitszeiten?userId=${uid}&kw=${filterKw}&jahr=${filterJahr}`)
       .then((r) => r.json())
       .then(setData)
@@ -64,7 +63,7 @@ export default function ArbeitszeitenPage() {
         {["CHEF", "FILIALLEITER"].includes(userRole) && (
           <div className="space-y-1.5">
             <Label>Mitarbeiter</Label>
-            <Select value={selectedUser} onValueChange={setSelectedUser}>
+            <Select value={selectedUser} onValueChange={(value) => { setLoading(true); setSelectedUser(value); }}>
               <SelectTrigger className="w-48"><SelectValue placeholder="Auswählen..." /></SelectTrigger>
               <SelectContent>
                 {mitarbeiter.map((m) => <SelectItem key={m.id} value={m.id}>{m.name}</SelectItem>)}
@@ -74,14 +73,14 @@ export default function ArbeitszeitenPage() {
         )}
         <div className="space-y-1.5">
           <Label>Kalenderwoche</Label>
-          <Select value={filterKw} onValueChange={setFilterKw}>
+          <Select value={filterKw} onValueChange={(value) => { setLoading(true); setFilterKw(value); }}>
             <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
             <SelectContent>{kws.map((k) => <SelectItem key={k} value={k}>KW{k}</SelectItem>)}</SelectContent>
           </Select>
         </div>
         <div className="space-y-1.5">
           <Label>Jahr</Label>
-          <Select value={filterJahr} onValueChange={setFilterJahr}>
+          <Select value={filterJahr} onValueChange={(value) => { setLoading(true); setFilterJahr(value); }}>
             <SelectTrigger className="w-28"><SelectValue /></SelectTrigger>
             <SelectContent>{years.map((y) => <SelectItem key={y} value={y}>{y}</SelectItem>)}</SelectContent>
           </Select>

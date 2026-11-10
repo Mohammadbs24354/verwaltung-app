@@ -150,7 +150,20 @@ function seedStore(): Store {
   const leiterPw = bcrypt.hashSync("leiter1234", 8);
   const mitarbeiterPw = bcrypt.hashSync("mitarbeiter1234", 8);
 
-  const users: User[] = [
+  // Demo accounts are development-only; never seed publicly known credentials in production.
+  const productionAdmin = process.env.INITIAL_ADMIN_EMAIL && process.env.INITIAL_ADMIN_PASSWORD
+    ? [{
+        id: "initial-admin",
+        name: "Administrator",
+        email: process.env.INITIAL_ADMIN_EMAIL.trim().toLowerCase(),
+        password: bcrypt.hashSync(process.env.INITIAL_ADMIN_PASSWORD, 12),
+        role: "CHEF" as const,
+        aktiv: true,
+        createdAt: t,
+        updatedAt: t,
+      }]
+    : [];
+  const users: User[] = process.env.NODE_ENV === "production" ? productionAdmin : [
     { id: "user-chef", name: "Max Chef", email: "chef@verwaltung.de", password: chefPw, role: "CHEF", aktiv: true, createdAt: t, updatedAt: t },
     { id: "user-anna", name: "Anna Nord", email: "anna@verwaltung.de", password: leiterPw, role: "FILIALLEITER", aktiv: true, createdAt: t, updatedAt: t },
     { id: "user-ben", name: "Ben Sued", email: "ben@verwaltung.de", password: leiterPw, role: "FILIALLEITER", aktiv: true, createdAt: t, updatedAt: t },
