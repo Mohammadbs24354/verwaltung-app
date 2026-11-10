@@ -105,7 +105,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
   if (isRecord(body.contract)) {
     const hours = Number(body.contract.sollStunden);
-    if (body.contract.sollStunden !== undefined && (!Number.isFinite(hours) || hours <= 0 || hours > 60)) {
+    if (body.contract.sollStunden !== undefined && (typeof body.contract.sollStunden !== "number" || !Number.isFinite(hours) || hours <= 0 || hours > 60)) {
       return NextResponse.json({ error: "Ungültige Sollstunden" }, { status: 400 });
     }
     const contract = store.contracts.find((item) => item.userId === id);
@@ -131,7 +131,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
         id: newId(),
         userId: id,
         istVollzeit: typeof body.contract.istVollzeit === "boolean" ? body.contract.istVollzeit : true,
-        sollStunden: body.contract.sollStunden ?? 38.5,
+        sollStunden: body.contract.sollStunden !== undefined ? hours : 38.5,
         eintrittsDatum: entryDate,
         austrittsDatum: null,
         aktiv: true,
