@@ -203,7 +203,7 @@ function seedStore(): Store {
     { id: "c-anna", userId: "user-anna", istVollzeit: true, sollStunden: 38.5, eintrittsDatum: new Date("2022-01-01"), austrittsDatum: null, aktiv: true, createdAt: t, updatedAt: t },
     { id: "c-ben", userId: "user-ben", istVollzeit: true, sollStunden: 38.5, eintrittsDatum: new Date("2022-01-01"), austrittsDatum: null, aktiv: true, createdAt: t, updatedAt: t },
     { id: "c-clara", userId: "user-clara", istVollzeit: true, sollStunden: 38.5, eintrittsDatum: new Date("2022-01-01"), austrittsDatum: null, aktiv: true, createdAt: t, updatedAt: t },
-    { id: "c-david", userId: "user-david", istVollzeit: true, sollStunden: 38.5, eintrittsDatum: new Date("2022-01-01"), austritsDatum: null, aktiv: true, createdAt: t, updatedAt: t },
+    { id: "c-david", userId: "user-david", istVollzeit: true, sollStunden: 38.5, eintrittsDatum: new Date("2022-01-01"), austrittsDatum: null, aktiv: true, createdAt: t, updatedAt: t },
     { id: "c-erika", userId: "user-erika", istVollzeit: true, sollStunden: 38.5, eintrittsDatum: new Date("2023-03-01"), austrittsDatum: null, aktiv: true, createdAt: t, updatedAt: t },
     { id: "c-fritz", userId: "user-fritz", istVollzeit: true, sollStunden: 38.5, eintrittsDatum: new Date("2023-03-01"), austrittsDatum: null, aktiv: true, createdAt: t, updatedAt: t },
     { id: "c-gabi", userId: "user-gabi", istVollzeit: true, sollStunden: 38.5, eintrittsDatum: new Date("2023-03-01"), austrittsDatum: null, aktiv: true, createdAt: t, updatedAt: t },
