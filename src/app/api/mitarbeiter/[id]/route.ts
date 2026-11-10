@@ -75,6 +75,17 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (body.name !== undefined && (typeof body.name !== "string" || body.name.trim().length < 2)) {
     return NextResponse.json({ error: "Ungültiger Name" }, { status: 400 });
   }
+  if (body.contract !== undefined && !isRecord(body.contract)) {
+    return NextResponse.json({ error: "Ungültige Vertragsdaten" }, { status: 400 });
+  }
+  if (isRecord(body.contract)) {
+    if (body.contract.istVollzeit !== undefined && typeof body.contract.istVollzeit !== "boolean") {
+      return NextResponse.json({ error: "Ungültiger Vollzeit-Status" }, { status: 400 });
+    }
+    if (body.contract.aktiv !== undefined && typeof body.contract.aktiv !== "boolean") {
+      return NextResponse.json({ error: "Ungültiger Vertragsstatus" }, { status: 400 });
+    }
+  }
   if (body.name) user.name = body.name.trim();
   if (body.email) {
     const email = body.email.trim().toLowerCase();
@@ -119,7 +130,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       const newContract: Contract = {
         id: newId(),
         userId: id,
-        istVollzeit: body.contract.istVollzeit ?? true,
+        istVollzeit: typeof body.contract.istVollzeit === "boolean" ? body.contract.istVollzeit : true,
         sollStunden: body.contract.sollStunden ?? 38.5,
         eintrittsDatum: entryDate,
         austrittsDatum: null,
