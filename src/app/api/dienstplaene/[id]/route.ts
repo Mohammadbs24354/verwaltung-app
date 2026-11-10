@@ -1,8 +1,12 @@
 import { auth } from "@/lib/auth";
-import { store } from "@/lib/store";
+import { store, type ScheduleStatus } from "@/lib/store";
 import { NextResponse } from "next/server";
 import { createAuditLog, createNotificationForAll } from "@/lib/server-utils";
 import { canManageFiliale, isUserInFiliale } from "@/lib/authorization";
+
+function isScheduleStatus(value: unknown): value is ScheduleStatus {
+  return value === "ENTWURF" || value === "EINGEREICHT" || value === "FREIGEGEBEN" || value === "NACHTRAEGLICH_GEAENDERT";
+}
 
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
@@ -57,13 +61,12 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   try { body = await req.json(); } catch {
     return NextResponse.json({ error: "Ungültige Anfrage" }, { status: 400 });
   }
-  const allowedStatuses = ["ENTWURF", "EINGEREICHT", "FREIGEGEBEN", "NACHTRAEGLICH_GEAENDERT"];
-  if (body.status !== undefined && !allowedStatuses.includes(String(body.status))) {
+  if (body.status !== undefined && !isScheduleStatus(body.status)) {
     return NextResponse.json({ error: "Ungültiger Dienstplanstatus" }, { status: 400 });
   }
   const old = { ...schedule };
   const wasFreigegeben = schedule.status === "FREIGEGEBEN";
-  const newStatus = body.status ?? schedule.status;
+  const newStatus: ScheduleStatus = body.status === undefined ? schedule.status : body.status;
 
   schedule.status = newStatus;
   if (newStatus === "FREIGEGEBEN") {
