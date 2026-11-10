@@ -49,7 +49,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     return NextResponse.json({ error: "Ungültige Anfrage" }, { status: 400 });
   }
   const pause = body.pausen ?? 0;
-  if (!validEntryForSchedule(schedule, { ...body, pausen: pause })) {
+  if (!validEntryForSchedule(schedule, {
+    userId: body.userId,
+    datum: body.datum,
+    startZeit: body.startZeit,
+    endZeit: body.endZeit,
+    pausen: pause,
+  })) {
     return NextResponse.json({ error: "Ungültiger Dienstplaneintrag oder Mitarbeiter gehört nicht zu dieser Filiale" }, { status: 400 });
   }
   const startZeit = body.startZeit as string;
