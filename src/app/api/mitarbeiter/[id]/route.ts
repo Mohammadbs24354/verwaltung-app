@@ -5,6 +5,10 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { canManageUser } from "@/lib/authorization";
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -50,9 +54,11 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const user = store.users.find((item) => item.id === id);
   if (!user) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  let body: Record<string, any>;
+  let body: Record<string, unknown>;
   try {
-    body = await req.json();
+    const parsed: unknown = await req.json();
+    if (!isRecord(parsed)) return NextResponse.json({ error: "Ungültige Anfrage" }, { status: 400 });
+    body = parsed;
   } catch {
     return NextResponse.json({ error: "Ungültige Anfrage" }, { status: 400 });
   }
@@ -86,17 +92,17 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   }
   user.updatedAt = new Date();
 
-  if (body.contract) {
+  if (isRecord(body.contract)) {
     const hours = Number(body.contract.sollStunden);
     if (body.contract.sollStunden !== undefined && (!Number.isFinite(hours) || hours <= 0 || hours > 60)) {
       return NextResponse.json({ error: "Ungültige Sollstunden" }, { status: 400 });
     }
-    let contract = store.contracts.find((item) => item.userId === id);
+    const contract = store.contracts.find((item) => item.userId === id);
     if (contract) {
       if (body.contract.istVollzeit !== undefined) contract.istVollzeit = Boolean(body.contract.istVollzeit);
       if (body.contract.sollStunden !== undefined) contract.sollStunden = hours;
       if (body.contract.austrittsDatum !== undefined) {
-        const exitDate = body.contract.austrittsDatum ? new Date(body.contract.austrittsDatum) : null;
+        const exitDate = body.contract.austrittsDatum ? new Date(String(body.contract.austrittsDatum)) : null;
         if (exitDate && !Number.isFinite(exitDate.getTime())) {
           return NextResponse.json({ error: "Ungültiges Austrittsdatum" }, { status: 400 });
         }
@@ -105,7 +111,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       if (body.contract.aktiv !== undefined) contract.aktiv = Boolean(body.contract.aktiv);
       contract.updatedAt = new Date();
     } else {
-      const entryDate = new Date(body.contract.eintrittsDatum);
+      const entryDate = new Date(String(body.contract.eintrittsDatum));
       if (!Number.isFinite(entryDate.getTime())) {
         return NextResponse.json({ error: "Eintrittsdatum erforderlich" }, { status: 400 });
       }
