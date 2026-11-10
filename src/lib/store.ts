@@ -150,20 +150,8 @@ function seedStore(): Store {
   const leiterPw = bcrypt.hashSync("leiter1234", 8);
   const mitarbeiterPw = bcrypt.hashSync("mitarbeiter1234", 8);
 
-  // Demo accounts are development-only; never seed publicly known credentials in production.
-  const productionAdmin = process.env.INITIAL_ADMIN_EMAIL && process.env.INITIAL_ADMIN_PASSWORD
-    ? [{
-        id: "initial-admin",
-        name: "Administrator",
-        email: process.env.INITIAL_ADMIN_EMAIL.trim().toLowerCase(),
-        password: bcrypt.hashSync(process.env.INITIAL_ADMIN_PASSWORD, 12),
-        role: "CHEF" as const,
-        aktiv: true,
-        createdAt: t,
-        updatedAt: t,
-      }]
-    : [];
-  const users: User[] = process.env.NODE_ENV === "production" ? productionAdmin : [
+  // These are fictional demo identities and data, intentionally available in the public demo.
+  const demoUsers: User[] = [
     { id: "user-chef", name: "Max Chef", email: "chef@verwaltung.de", password: chefPw, role: "CHEF", aktiv: true, createdAt: t, updatedAt: t },
     { id: "user-anna", name: "Anna Nord", email: "anna@verwaltung.de", password: leiterPw, role: "FILIALLEITER", aktiv: true, createdAt: t, updatedAt: t },
     { id: "user-ben", name: "Ben Sued", email: "ben@verwaltung.de", password: leiterPw, role: "FILIALLEITER", aktiv: true, createdAt: t, updatedAt: t },
@@ -174,6 +162,24 @@ function seedStore(): Store {
     { id: "user-gabi", name: "Gabi Test", email: "gabi@verwaltung.de", password: mitarbeiterPw, role: "MITARBEITER", aktiv: true, createdAt: t, updatedAt: t },
     { id: "user-hans", name: "Hans Demo", email: "hans@verwaltung.de", password: mitarbeiterPw, role: "MITARBEITER", aktiv: true, createdAt: t, updatedAt: t },
   ];
+
+  const productionAdmin: User[] = process.env.INITIAL_ADMIN_EMAIL && process.env.INITIAL_ADMIN_PASSWORD
+    ? [{
+        id: "initial-admin",
+        name: "Administrator",
+        email: process.env.INITIAL_ADMIN_EMAIL.trim().toLowerCase(),
+        password: bcrypt.hashSync(process.env.INITIAL_ADMIN_PASSWORD, 12),
+        role: "CHEF",
+        aktiv: true,
+        createdAt: t,
+        updatedAt: t,
+      }]
+    : [];
+
+  // Production includes only fictional demo users plus the separately configured private admin.
+  const users: User[] = process.env.NODE_ENV === "production"
+    ? [...demoUsers, ...productionAdmin]
+    : demoUsers;
 
   const filialen: Filiale[] = [
     { id: "filiale-nord", name: "Filiale Nord", adresse: "Nordstrasse 1, 12345 Musterstadt", createdAt: t, updatedAt: t },

@@ -7,7 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Building2, Loader2 } from "lucide-react";
+import { Building2, Loader2, Users } from "lucide-react";
+
+const demoAccounts = [
+  { label: "Administrator", role: "CHEF", email: "chef@verwaltung.de", password: "chef1234" },
+  { label: "Filialleiter", role: "FILIALLEITER", email: "anna@verwaltung.de", password: "leiter1234" },
+  { label: "Mitarbeiter", role: "MITARBEITER", email: "erika@verwaltung.de", password: "mitarbeiter1234" },
+];
 
 export default function LoginPage() {
   const router = useRouter();
@@ -36,9 +42,15 @@ export default function LoginPage() {
     }
   }
 
+  function chooseDemoAccount(account: (typeof demoAccounts)[number]) {
+    setEmail(account.email);
+    setPassword(account.password);
+    setError("");
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <div className="w-full max-w-md space-y-8">
+      <div className="w-full max-w-md space-y-6">
         <div className="flex flex-col items-center text-center">
           <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-600 shadow-lg">
             <Building2 className="h-9 w-9 text-white" />
@@ -95,6 +107,35 @@ export default function LoginPage() {
                 )}
               </Button>
             </form>
+          </CardContent>
+        </Card>
+
+        <Card className="border-blue-100 shadow-sm">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Users className="h-4 w-4 text-blue-600" />
+              Demo-Zugänge
+            </CardTitle>
+            <CardDescription>
+              Wählen Sie eine Rolle aus. Die Zugangsdaten werden automatisch eingetragen.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-2">
+            {demoAccounts.map((account) => (
+              <Button
+                key={account.role}
+                type="button"
+                variant="outline"
+                className="justify-between"
+                onClick={() => chooseDemoAccount(account)}
+              >
+                <span>{account.label}</span>
+                <span className="text-xs text-muted-foreground">Zugangsdaten eintragen</span>
+              </Button>
+            ))}
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              Öffentliche Testkonten mit ausschließlich erfundenen Beispieldaten. Änderungen können für andere Demo-Nutzer sichtbar sein und bei einem Neustart verloren gehen.
+            </p>
           </CardContent>
         </Card>
       </div>
