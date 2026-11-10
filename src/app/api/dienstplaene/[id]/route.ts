@@ -64,6 +64,9 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (body.status !== undefined && !isScheduleStatus(body.status)) {
     return NextResponse.json({ error: "Ungültiger Dienstplanstatus" }, { status: 400 });
   }
+  if (body.begruendung !== undefined && (typeof body.begruendung !== "string" || body.begruendung.length > 1000)) {
+    return NextResponse.json({ error: "Ungültige Begründung" }, { status: 400 });
+  }
   const old = { ...schedule };
   const wasFreigegeben = schedule.status === "FREIGEGEBEN";
   const newStatus: ScheduleStatus = body.status === undefined ? schedule.status : body.status;
@@ -91,7 +94,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     datensatzId: id,
     alterWert: old,
     neuerWert: { ...schedule },
-    begruendung: body.begruendung,
+    begruendung: body.begruendung as string | undefined,
   });
 
   if (newStatus === "FREIGEGEBEN") {
